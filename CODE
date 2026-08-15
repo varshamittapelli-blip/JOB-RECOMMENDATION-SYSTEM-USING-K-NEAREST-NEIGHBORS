@@ -1,0 +1,233 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# ==========================================
+# Job Recommendation System using KNN
+# ==========================================
+
+class JobRecommendationSystem:
+    """
+    A job recommendation system using K-Nearest Neighbors (KNN) algorithm.
+    Recommends suitable jobs based on candidate skills and experience.
+    """
+
+    def __init__(self, k=5):
+        """
+        Initialize the job recommendation system.
+
+        Args:
+            k (int): Number of neighbors to consider
+        """
+        self.k = k
+        self.model = KNeighborsClassifier(n_neighbors=k)
+        self.scaler = StandardScaler()
+        self.feature_names = []
+        self.job_categories = []
+
+    def prepare_data(self):
+        """
+        Create sample dataset for job recommendations.
+        Features: Years of Experience, Programming Skills (0-10), 
+                  Communication Skills (0-10), Problem Solving (0-10),
+                  Education Level (1-5)
+        """
+        # Sample data
+        data = {
+            'Years_Experience': [1, 2, 3, 1, 2, 5, 6, 7, 8, 4, 3, 2, 1, 9, 10],
+            'Programming_Skills': [8, 9, 10, 3, 5, 9, 10, 8, 7, 6, 4, 3, 2, 10, 9],
+            'Communication_Skills': [5, 6, 7, 8, 9, 4, 5, 6, 7, 8, 9, 10, 8, 6, 7],
+            'Problem_Solving': [7, 8, 9, 4, 5, 8, 9, 7, 6, 7, 5, 4, 3, 9, 8],
+            'Education_Level': [3, 4, 5, 2, 2, 5, 5, 4, 3, 4, 3, 2, 1, 5, 5]
+        }
+
+        # Job categories (target variable)
+        jobs = ['Data_Analyst', 'Data_Scientist', 'Senior_Developer', 
+                'HR_Manager', 'Sales_Executive', 'Data_Scientist', 
+                'Senior_Developer', 'Software_Engineer', 'Developer',
+                'Business_Analyst', 'HR_Manager', 'Sales_Executive',
+                'Intern', 'Senior_Developer', 'Data_Scientist']
+
+        df = pd.DataFrame(data)
+        df['Job_Category'] = jobs
+
+        return df
+
+    def train(self, df):
+        """
+        Train the KNN model on the dataset.
+
+        Args:
+            df (DataFrame): Training dataset with features and target job categories
+        """
+        # Separate features and target
+        X = df.drop('Job_Category', axis=1)
+        y = df['Job_Category']
+
+        self.feature_names = X.columns.tolist()
+        self.job_categories = y.unique().tolist()
+
+        # Scale features
+        X_scaled = self.scaler.fit_transform(X)
+
+        # Train the model
+        self.model.fit(X_scaled, y)
+
+        print("✓ Model trained successfully!")
+        print(f"  Features: {self.feature_names}")
+        print(f"  Job Categories: {self.job_categories}\n")
+
+    def recommend_job(self, years_exp, prog_skills, comm_skills, problem_solving, education):
+        """
+        Recommend a job based on candidate profile.
+
+        Args:
+            years_exp (int): Years of experience
+            prog_skills (int): Programming skills (0-10)
+            comm_skills (int): Communication skills (0-10)
+            problem_solving (int): Problem solving skills (0-10)
+            education (int): Education level (1-5)
+
+        Returns:
+            dict: Recommended job and confidence score
+        """
+        # Prepare input
+        candidate = np.array([[years_exp, prog_skills, comm_skills, problem_solving, education]])
+
+        # Scale the input
+        candidate_scaled = self.scaler.transform(candidate)
+
+        # Get prediction and distances
+        prediction = self.model.predict(candidate_scaled)[0]
+        distances, indices = self.model.kneighbors(candidate_scaled)
+
+        # Calculate confidence (inverse of average distance)
+        confidence = 1 / (1 + np.mean(distances[0]))
+
+        return {
+            'recommended_job': prediction,
+            'confidence': confidence,
+            'similar_profiles': [self.job_categories[i] for i in indices[0]]
+        }
+
+    def evaluate_model(self, df):
+        """
+        Evaluate the model performance.
+
+        Args:
+            df (DataFrame): Test dataset
+        """
+        X = df.drop('Job_Category', axis=1)
+        y = df['Job_Category']
+
+        X_scaled = self.scaler.transform(X)
+
+        # Predictions
+        y_pred = self.model.predict(X_scaled)
+        accuracy = accuracy_score(y, y_pred)
+
+        print("=" * 50)
+        print("MODEL EVALUATION")
+        print("=" * 50)
+        print(f"Accuracy: {accuracy:.2%}\n")
+        print("Classification Report:")
+        print(classification_report(y, y_pred))
+
+        # Confusion Matrix
+        cm = confusion_matrix(y, y_pred)
+
+        # Plot confusion matrix
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                    xticklabels=self.job_categories, 
+                    yticklabels=self.job_categories)
+        plt.title('Confusion Matrix - Job Recommendation KNN')
+        plt.ylabel('Actual')
+        plt.xlabel('Predicted')
+        plt.tight_layout()
+        plt.show()
+
+
+# ==========================================
+# MAIN EXECUTION
+# ==========================================
+
+def main():
+    """Main function to demonstrate the job recommendation system."""
+
+    print("=" * 50)
+    print("JOB RECOMMENDATION SYSTEM USING KNN")
+    print("=" * 50 + "\n")
+
+    # Initialize the system
+    recommender = JobRecommendationSystem(k=5)
+
+    # Prepare and train
+    print("1. Preparing training data...")
+    df = recommender.prepare_data()
+    print(f"   Dataset shape: {df.shape}")
+    print(f"   First few rows:\n{df.head()}\n")
+
+    print("2. Training the KNN model...")
+    recommender.train(df)
+
+    print("3. Evaluating the model...")
+    recommender.evaluate_model(df)
+
+    # Make recommendations for new candidates
+    print("\n" + "=" * 50)
+    print("JOB RECOMMENDATIONS FOR NEW CANDIDATES")
+    print("=" * 50 + "\n")
+
+    test_candidates = [
+        {
+            'name': 'Candidate A',
+            'years_exp': 8,
+            'prog_skills': 9,
+            'comm_skills': 6,
+            'problem_solving': 9,
+            'education': 5
+        },
+        {
+            'name': 'Candidate B',
+            'years_exp': 2,
+            'prog_skills': 4,
+            'comm_skills': 9,
+            'problem_solving': 5,
+            'education': 2
+        },
+        {
+            'name': 'Candidate C',
+            'years_exp': 5,
+            'prog_skills': 7,
+            'comm_skills': 7,
+            'problem_solving': 7,
+            'education': 4
+        }
+    ]
+
+    for candidate in test_candidates:
+        result = recommender.recommend_job(
+            candidate['years_exp'],
+            candidate['prog_skills'],
+            candidate['comm_skills'],
+            candidate['problem_solving'],
+            candidate['education']
+        )
+
+        print(f"{candidate['name']}:")
+        print(f"  Profile: {candidate['years_exp']} years exp, "
+              f"Programming: {candidate['prog_skills']}/10, "
+              f"Communication: {candidate['comm_skills']}/10")
+        print(f"  → Recommended Job: {result['recommended_job']}")
+        print(f"  → Confidence Score: {result['confidence']:.2%}")
+        print(f"  → Similar Profiles: {', '.join(result['similar_profiles'][:3])}\n")
+
+
+if __name__ == "__main__":
+    main()
