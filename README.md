@@ -1,5 +1,4 @@
-# JOB-RECOMMENDATION-SYSTEM-USING-K-NEAREST-NEIGHBORS
-# Job Recommendation System Using KNN
+# Job Recommendation System Using K-Nearest Neighbour
 
 ## 📌 Project Overview
 
